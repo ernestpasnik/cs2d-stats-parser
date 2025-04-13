@@ -48,12 +48,12 @@ jobs:
 
       - name: Move the specific binaries to release directory
         run: |
-          if [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
+          if [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
             mv target/${{ matrix.target }}/release/cs2d-stats-parser release/
-          fi
-          if [ "${{ matrix.os }}" == "windows-latest" ]; then
+          elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
             mv target/${{ matrix.target }}/release/cs2d-stats-parser.exe release/
           fi
+        shell: bash
 
       - name: List the release files
         run: ls -l release
