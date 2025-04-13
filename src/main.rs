@@ -54,7 +54,7 @@ fn generate_output(
 
 fn main() {
     let matches = Command::new("CS2D Stats Parser")
-        .version("2.0.0")
+        .version("3.0.0")
         .author("Ernest Paśnik <https://github.com/ernestpasnik/cs2d-stats-parser>")
         .about("This tool parses CS2D stats and exports them as HTML, JSON, CSV, Markdown, or XML.")
         .arg(Arg::new("folder")
