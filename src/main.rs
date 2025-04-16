@@ -1,7 +1,7 @@
 use clap::{Arg, Command};
 use std::path::Path;
 use std::time::Instant;
-use parser::parse_userstats;
+use parser::{parse_userstats, parse_stats};
 use std::process;
 use notify::{Watcher, RecursiveMode, recommended_watcher, EventKind};
 use std::sync::mpsc::channel;
@@ -10,8 +10,9 @@ use std::time::Duration;
 mod parser;
 mod output;
 
-fn generate_output(
+pub fn generate_output(
     userstats_path: &Path,
+    stats_path: &Path,
     output: &str,
     ext: &str,
     sort: u8,
@@ -20,41 +21,59 @@ fn generate_output(
     pretty: bool,
 ) {
     let start_time = Instant::now();
-    match parse_userstats(userstats_path.to_str().unwrap()) {
-        Ok(mut players) => {
-            match sort {
-                0 => players.sort_by_key(|p| -(p.score + p.kills - p.deaths)),
-                1 => players.sort_by_key(|p| -(p.assists + p.kills - p.deaths)),
-                2 => players.sort_by_key(|p| -(p.score + p.assists + p.deaths)),
-                _ => {}
-            }
 
-            let limit = limit.min(players.len() as u32) as usize;
-            players.truncate(limit);
-
-            let result = match ext {
-                "html" => output::write_html(&players, output, title),
-                "json" => output::write_json(&players, output, pretty),
-                "csv"  => output::write_csv(&players, output),
-                "md"   => output::write_md(&players, output, title),
-                "xml"  => output::write_xml(&players, output),
-                _ => unreachable!(),
-            };
-
-            if let Err(e) = result {
-                eprintln!("Error writing {}: {}", ext.to_uppercase(), e);
-                return;
-            }
-
-            println!("Generated '{}' within {} ms", output, start_time.elapsed().as_millis());
+    let mut players = match parse_userstats(userstats_path.to_str().unwrap()) {
+        Ok(players) => players,
+        Err(e) => {
+            eprintln!("Error parsing userstats: {}", e);
+            return;
         }
-        Err(e) => eprintln!("Error parsing userstats: {}", e),
+    };
+
+    let users = players.len();
+
+    match sort {
+        0 => players.sort_by_key(|p| -(p.score + p.kills - p.deaths)),
+        1 => players.sort_by_key(|p| -(p.assists + p.kills - p.deaths)),
+        2 => players.sort_by_key(|p| -(p.score + p.assists + p.deaths)),
+        _ => {}
     }
+
+    let limit = limit.min(players.len() as u32) as usize;
+    players.truncate(limit);
+
+    let traffic = match parse_stats(stats_path.to_str().unwrap()) {
+        Ok(traffic) => traffic,
+        Err(e) => {
+            eprintln!("Error parsing stats: {}", e);
+            return;
+        }
+    };
+
+    let uptime = traffic.len();
+    let uploaded: u64 = traffic.iter().map(|t| t.uploaded_bytes as u64).sum();
+    let downloaded: u64 = traffic.iter().map(|t| t.downloaded_bytes as u64).sum();
+
+    let result = match ext {
+        "html" => output::write_html(&players, output, title, uptime, uploaded, downloaded, users),
+        "json" => output::write_json(&players, output, pretty),
+        "csv"  => output::write_csv(&players, output),
+        "md"   => output::write_md(&players, output, title, uptime, uploaded, downloaded, users),
+        "xml"  => output::write_xml(&players, output),
+        _ => unreachable!(),
+    };
+
+    if let Err(e) = result {
+        eprintln!("Error writing {}: {}", ext.to_uppercase(), e);
+        return;
+    }
+
+    println!("Generated '{}' within {} ms", output, start_time.elapsed().as_millis());
 }
 
 fn main() {
     let matches = Command::new("CS2D Stats Parser")
-        .version("3.0.1")
+        .version("3.0.2")
         .author("Ernest Paśnik <https://github.com/ernestpasnik/cs2d-stats-parser>")
         .about("This tool parses CS2D stats and exports them as HTML, JSON, CSV, Markdown, or XML.")
         .arg(Arg::new("folder")
@@ -114,6 +133,12 @@ fn main() {
         process::exit(1);
     }
 
+    let stats_path = Path::new(folder).join("stats.dat");
+    if !stats_path.exists() {
+        eprintln!("Error: 'stats.dat' not found in '{}'.", folder);
+        process::exit(1);
+    }
+
     let ext = Path::new(output)
         .extension()
         .and_then(|e| e.to_str())
@@ -129,7 +154,7 @@ fn main() {
         process::exit(1);
     }
 
-    generate_output(&userstats_path, output, ext, sort, limit, title, pretty);
+    generate_output(&userstats_path, &stats_path, output, ext, sort, limit, title, pretty);
 
     if watch {
         println!("Monitoring '{}' for changes...", userstats_path.display());
@@ -145,7 +170,7 @@ fn main() {
                 Ok(Ok(event)) => {
                     if let EventKind::Modify(_) = event.kind {
                         println!("File change detected. Regenerating output...");
-                        generate_output(&userstats_path, output, ext, sort, limit, title, pretty);
+                        generate_output(&userstats_path, &stats_path, output, ext, sort, limit, title, pretty);
                     }
                 }
                 Ok(Err(e)) => {

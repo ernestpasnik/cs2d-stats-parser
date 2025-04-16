@@ -39,10 +39,17 @@ pub fn write_csv(players: &Vec<PlayerStats>, output_path: &str) -> io::Result<()
     Ok(())
 }
 
-pub fn write_html(players: &Vec<PlayerStats>, output_path: &str, title: &str) -> io::Result<()> {
+pub fn write_html(
+    players: &Vec<PlayerStats>,
+    output_path: &str,
+    title: &str,
+    uptime: usize,
+    uploaded: u64,
+    downloaded: u64,
+    users: usize,
+) -> io::Result<()> {
     let mut file = File::create(output_path)?;
-
-    let formatted_time = Local::now().format("%B %e, %Y at %H:%M:%S").to_string();
+    let formatted_time = Local::now().format("%d %b %Y at %H:%M:%S").to_string();
 
     let mut html = format!(
         r#"<!DOCTYPE html>
@@ -58,11 +65,24 @@ pub fn write_html(players: &Vec<PlayerStats>, output_path: &str, title: &str) ->
                 * {{
                     font-size: 100%;
                 }}
+                header {{
+                    margin-top: 1rem;
+                }}
+                article {{
+                    margin-bottom: 0;
+                }}
+                b {{
+                    font-weight: 600;
+                    display: block;
+                    font-size: 16px;
+                }}
                 tr, td {{
                     white-space: nowrap;
                 }}
-                .container {{
-                    max-width: 1000px;
+                @media (min-width: 1280px), (min-width: 1536px) {{
+                    .container {{
+                        max-width: 950px;
+                    }}
                 }}
                 .sortable thead th:not(.no-sort) {{ cursor: pointer; }}
                 .sortable thead th:not(.no-sort)::after, .sortable thead th:not(.no-sort)::before {{
@@ -100,8 +120,30 @@ pub fn write_html(players: &Vec<PlayerStats>, output_path: &str, title: &str) ->
             <header>
                 <hgroup>
                     <h1>{}</h1>
-                    <p>Last updated on {}</p>
+                    <p>Updated {}</p>
                 </hgroup>
+                <div class="grid">
+                    <article>
+                        <b>Uptime</b>
+                        <span>~{} h</span>
+                    </article>
+                    <article>
+                        <b>Upload Traffic</b>
+                        <span>{}</span>
+                    </article>
+                    <article>
+                        <b>Download Traffic</b>
+                        <span>{}</span>
+                    </article>
+                    <article>
+                        <b>Total Traffic</b>
+                        <span>{}</span>
+                    </article>
+                    <article>
+                        <b>Ranked Users</b>
+                        <span>{}</span>
+                    </article>
+                </div>
             </header>
             <main>
                 <div class="overflow-auto">
@@ -119,7 +161,8 @@ pub fn write_html(players: &Vec<PlayerStats>, output_path: &str, title: &str) ->
                             </tr>
                         </thead>
                         <tbody>"#,
-        title, title, formatted_time
+        title, title, formatted_time, uptime, format_bytes(uploaded),
+        format_bytes(downloaded), format_bytes(uploaded + downloaded), users
     );
 
     for (i, p) in players.iter().enumerate() {
@@ -138,9 +181,7 @@ pub fn write_html(players: &Vec<PlayerStats>, output_path: &str, title: &str) ->
         html.push_str(&format!(
             r#"<tr>
                 <td>{}</td>
-                <th scope="row">
-                    <a href="{}" target="_blank">{}</a>
-                </th>
+                <th scope="row"><a href="{}" target="_blank">{}</a></th>
                 <td>{:.2}</td>
                 <td>{}</td>
                 <td>{}</td>
@@ -188,10 +229,26 @@ pub fn write_html(players: &Vec<PlayerStats>, output_path: &str, title: &str) ->
     Ok(())
 }
 
-pub fn write_md(players: &Vec<PlayerStats>, output_path: &str, title: &str) -> io::Result<()> {
+pub fn write_md(
+    players: &Vec<PlayerStats>,
+    output_path: &str,
+    title: &str,
+    uptime: usize,
+    uploaded: u64,
+    downloaded: u64,
+    users: usize,
+) -> io::Result<()> {
     let mut file = File::create(output_path)?;
+    let formatted_time = Local::now().format("%d %b %Y at %H:%M:%S").to_string();
 
     writeln!(file, "# {}", title)?;
+    writeln!(file)?;
+    writeln!(file, "- **Updated:** {}", formatted_time)?;
+    writeln!(file, "- **Uptime:** ~{} h", uptime)?;
+    writeln!(file, "- **Upload Traffic:** {}", format_bytes(uploaded))?;
+    writeln!(file, "- **Download Traffic:** {}", format_bytes(downloaded))?;
+    writeln!(file, "- **Total Traffic:** {}", format_bytes(uploaded + downloaded))?;
+    writeln!(file, "- **Ranked Users:** {}", users)?;
     writeln!(file)?;
     writeln!(file, "| # | Player | K/D | K | A | D | ⭐ | ⌚ |")?;
     writeln!(file, "|---|--------|-----|---|---|---|----|----|")?;
@@ -259,6 +316,24 @@ fn format_time(s: i32) -> String {
         format!("{}m {}s", minutes, seconds)
     } else {
         format!("{}s", seconds)
+    }
+}
+
+fn format_bytes(bytes: u64) -> String {
+    let kb = 1024.0;
+    let mb = kb * 1024.0;
+    let gb = mb * 1024.0;
+
+    let bytes_f = bytes as f64;
+
+    if bytes_f >= gb {
+        format!("{:.2} GB", bytes_f / gb)
+    } else if bytes_f >= mb {
+        format!("{:.2} MB", bytes_f / mb)
+    } else if bytes_f >= kb {
+        format!("{:.2} KB", bytes_f / kb)
+    } else {
+        format!("{} bytes", bytes)
     }
 }
 
