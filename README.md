@@ -2,7 +2,8 @@
 This tool parses CS2D stats and exports them as **HTML**, **JSON**, **CSV**, **Markdown**, or **XML**.
 Use the `-h` option to display all available arguments and options.
 
-![Output](https://i.imgur.com/fOKdcgq.gif)
+### Demo Output
+If you want to see example output, check the `/example-output` folder in the repository.
 
 ## Usage
 ```
