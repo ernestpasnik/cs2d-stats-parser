@@ -3,7 +3,11 @@ This tool parses CS2D stats and exports them as **HTML**, **JSON**, **CSV**, **M
 Use the `-h` option to display all available arguments and options.
 
 ### Demo Output
-If you want to see example output, check the `/example-output` folder in the repository.
+- [HTML Example](https://htmlpreview.github.io/?https://github.com/ernestpasnik/cs2d-stats-parser/blob/main/example-output/demo.html)
+- [Markdown Example](https://github.com/ernestpasnik/cs2d-stats-parser/blob/main/example-output/demo.md)
+- [CSV Example](https://github.com/ernestpasnik/cs2d-stats-parser/blob/main/example-output/demo.csv)
+- [XML Example](https://github.com/ernestpasnik/cs2d-stats-parser/blob/main/example-output/demo.xml)
+- [JSON Example](https://github.com/ernestpasnik/cs2d-stats-parser/blob/main/example-output/demo.json)
 
 ## Usage
 ```
