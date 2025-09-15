@@ -10,55 +10,84 @@ permissions:
 
 jobs:
   build-and-upload:
-    name: Build and upload
     runs-on: ${{ matrix.os }}
-
     strategy:
       matrix:
         include:
-          - build: linux
+          # Linux
+          - build: linux-64bit
             os: ubuntu-latest
             target: x86_64-unknown-linux-musl
-          - build: win-msvc
+          - build: linux-32bit
+            os: ubuntu-latest
+            target: i686-unknown-linux-gnu
+          - build: linux-arm64
+            os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+
+          # Windows
+          - build: windows-64bit
             os: windows-latest
             target: x86_64-pc-windows-msvc
+          - build: windows-32bit
+            os: windows-latest
+            target: i686-pc-windows-msvc
+          - build: windows-arm64
+            os: windows-latest
+            target: aarch64-pc-windows-msvc
+
+          # macOS
+          - build: macos-64bit
+            os: macos-latest
+            target: x86_64-apple-darwin
+          - build: macos-arm64
+            os: macos-latest
+            target: aarch64-apple-darwin
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Get the release version from the tag
-        shell: bash
+      - name: Get version from tag
         run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: actions-rs/toolchain@v1
         with:
-          targets: ${{ matrix.target }}
+          profile: minimal
+          override: true
+          target: ${{ matrix.target }}
 
-      - name: Build
-        uses: actions-rs/cargo@v1
-        with:
-          use-cross: true
-          command: build
-          args: --verbose --release --target ${{ matrix.target }}
+      - name: Build release
+        run: cargo build --release --target ${{ matrix.target }}
 
       - name: Create release directory
         run: mkdir -p release
 
-      - name: Move the specific binaries to release directory
+      - name: Move binary to release
         run: |
-          if [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
-            mv target/${{ matrix.target }}/release/cs2d-stats-parser release/
-          elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            mv target/${{ matrix.target }}/release/cs2d-stats-parser.exe release/
+          ext=""
+          if [[ "${{ matrix.build }}" == windows-* ]]; then
+            ext=".exe"
           fi
+          BIN_NAME="cs2d-stats-parser-${{ matrix.build }}${ext}"
+          mv target/${{ matrix.target }}/release/cs2d-stats-parser${ext} release/$BIN_NAME
         shell: bash
 
-      - name: List the release files
+      - name: Generate SHA256 checksum
+        run: |
+          cd release
+          > checksums.txt
+          for f in cs2d-stats-parser-*; do
+            sha256sum "$f" >> checksums.txt
+          done
+          sort -o checksums.txt checksums.txt
+        shell: bash
+
+      - name: List release files
         run: ls -l release
 
-      - name: Upload the binaries to the release
+      - name: Upload binaries and checksums to GitHub Release
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
