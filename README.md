@@ -3,7 +3,7 @@ This tool parses CS2D stats and exports them as **HTML**, **JSON**, **CSV**, **M
 Use the `-h` option to display all available arguments and options.
 
 ### 🧪 Demo Output
-- [HTML Example](https://cs2d.pp.ua/demo.html)
+- [HTML Example](/example-output/demo.html)
 - [Markdown Example](/example-output/demo.md)
 - [CSV Example](/example-output/demo.csv)
 - [XML Example](/example-output/demo.xml)
